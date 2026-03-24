@@ -1,0 +1,131 @@
+model ApiKey {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  projectId  String    @map("project_id")
+  keyHash    String    @map("key_hash")
+  keyPrefix  String    @map("key_prefix")
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+
+  user      User       @relation(fields: [userId], references: [id])
+  project   Project    @relation(fields: [projectId], references: [id])
+  queryLogs QueryLog[]
+
+  @@map("API_KEYS")
+}
+
+model Document {
+  id              String          @id @default(uuid())
+  projectId       String          @map("project_id")
+  fileName        String          @map("file_name")
+  fileType        FileType        @map("file_type")
+  storagePath     String          @map("storage_path")
+  uploadStatus    IngestionStatus @map("uplaod_status")
+  ingestionStatus IngestionStatus @map("ingetion_status")
+  errorMessage    String?         @map("error_message")
+  uploadedAt      DateTime        @default(now()) @map("uploaded_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@map("DOCUMENTS")
+}
+
+enum FileType {
+  PDF
+  TXT
+  DOCX
+  MD
+  CSV
+}
+
+enum IngestionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum uploadStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Model {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  modelName   String    @map("model_name")
+  modelType   ModelType @map("model_type")
+  description String?
+  isActive    Boolean   @default(true) @map("is_active")
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("MODELS")
+}
+
+enum ModelType {
+  RETRIEVAL
+  GENERATOR
+}
+
+model Project {
+  id                     String   @id @default(uuid())
+  userId                 String   @map("user_id")
+  name                   String
+  description            String?
+  retrievalModelId       String   @map("retrieval_model_id")
+  generatorModelId       String   @map("generator_model_id")
+  systemPrompt           String   @default("You are a helpful AI Assistant") @map("system_prompt")
+  vectorDbCollectionName String?  @map("vector_db_collection_name")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  user      User       @relation(fields: [userId], references: [id])
+  documents Document[]
+  apiKeys   ApiKey[]
+  queryLogs QueryLog[]
+
+  @@map("PROJECTS")
+}
+
+model QueryLog {
+  id                BigInt   @id @default(autoincrement())
+  projectId         String   @map("project_id")
+  apiKeyId          String   @map("api_key_id")
+  userQuery         String   @map("user_query")
+  generatedResponse String   @map("generated_response")
+  citations         Json     @map("citations")
+  requestTimestamp  DateTime @default(now()) @map("request_timestamp")
+  responseTimestamp DateTime @default(now()) @map("response_timestamp")
+
+  project Project @relation(fields: [projectId], references: [id])
+  apiKey  ApiKey  @relation(fields: [apiKeyId], references: [id])
+
+  @@map("QUERY_LOGS")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  projects Project[]
+  apiKeys  ApiKey[]
+  model    Model[]
+
+  @@map("USERS")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
